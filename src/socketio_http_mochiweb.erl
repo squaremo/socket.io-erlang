@@ -12,8 +12,9 @@ start_link(Opts) ->
     Prefix = proplists:get_value(resource, Opts),
     SSL = proplists:get_value(ssl, Opts),
     MochiOpts = mochiweb_options(Port, HttpProcess, Prefix, SSL),
+    Name = "socketio-mochiweb-" ++ integer_to_list(Port),
     %% This does, ultimately, start_link a gen_server.
-    socketio_http_mochiweb_sup:start_link(MochiOpts).
+    socketio_http_mochiweb_sup:start_link([{name, Name} | MochiOpts]).
 
 file(Req, Filename) ->
     %% Euw, frankly.
@@ -61,7 +62,6 @@ ensure_longpolling_request(Req) ->
 
 mochiweb_options(Port, HttpProcess, Resource, SSL) ->
     [{port, Port},
-     {ssl, SSL},
      {loop, fun(Req) -> handle_request(Req, Resource, HttpProcess) end} |
      case SSL of
          undefined ->
@@ -92,15 +92,15 @@ maybe_ws(Req, Prefix, HttpServer) ->
                  {ssl, _Sock} -> "wss";
                  _Sock        -> "ws"
              end,
-    Headers = Req:get(headers),
-    case process_handshake(Scheme, Headers) of
+    case process_handshake(Scheme, Req) of
         {error, DoesNotCompute} ->
             close_error(Req);
         {response, Headers, Body} ->
             send_headers(Req, Headers),
             Req:send(Body),
             {ok, Ws} = start_ws(HttpServer),
-            {SessionId, Pid} = gen_server:call({session, generate, {websocket, Ws},
+            {SessionId, Pid} = gen_server:call(HttpServer,
+                                               {session, generate, {websocket, Ws},
                                                 socketio_transport_websocket}),
             Sock = Req:get(socket),
             handover_socket(Sock, Ws),

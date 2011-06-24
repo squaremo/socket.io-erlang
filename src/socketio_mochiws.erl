@@ -12,7 +12,7 @@
 -export([start_link/1, send_frame/2, close/2]).
 -export([wait_for_socket/2, wait_for_frame/2, close_sent/2]).
 
--record(state, {http_server, receiver, socket, parse_state}).
+-record(state, {http_server, receiver, socket, parse_state, buffered = []}).
 
 -record(parse, {type = unknown, fragments_rev = [], remaining = unknown}).
 
@@ -32,14 +32,18 @@ close(Pid, Reason) ->
 
 % States
 
+wait_for_socket({send, Msg}, State = #state{ buffered = Buf }) ->
+    {next_state, wait_for_socket, State#state{ buffered = [Msg | Buf] }};
 wait_for_socket({socket_ready, Sock, ReceiverPid},
-                State = #state{}) ->
+                State = #state{ buffered = Buf }) ->
     mochiweb_socket:setopts(Sock, [{active, once}]),
     State1 = State#state{ parse_state = initial_parse_state(),
                           socket = Sock,
+                          buffered = [],
                           receiver = ReceiverPid },
+    State2 = lists:foldr(fun send_data/2, State1, Buf),
     %error_logger:info_msg("Connection started ~p~n", [i(State1)]),
-    {next_state, wait_for_frame, State1}.
+    {next_state, wait_for_frame, State2}.
 
 wait_for_frame({data, Data}, State = #state{
                                socket = Sock,
@@ -61,7 +65,7 @@ wait_for_frame({data, Data}, State = #state{
                              parse_state = rabbit_socks_ws:initial_parse_state()})
     end;
 wait_for_frame({send, Frame}, State) ->
-    {next_state, wait_for_frame, send_data(State, Frame)};
+    {next_state, wait_for_frame, send_data(Frame, State)};
 wait_for_frame({close, Reason}, State) ->
     error_logger:info_msg("Server initiated close ~p~n", [i(State)]),
     State1 = terminate_protocol(State),
@@ -95,9 +99,9 @@ initiate_close(State) ->
     _TimerRef = gen_fsm:start_timer(?CLOSE_TIMEOUT, close_handshake),
     State.
 
-send_data(State, {utf8, Data}) ->
+send_data({utf8, Data}, State) ->
     send_data(State, Data);
-send_data(State = #state{ socket = Socket }, IoList) ->
+send_data(IoList, State = #state { socket = Socket }) ->
     mochiweb_socket:send(Socket, [<<?TEXT_FRAME_START>>, IoList, <<?TEXT_FRAME_END>>]),
     State.
 
