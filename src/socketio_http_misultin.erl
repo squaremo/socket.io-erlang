@@ -8,7 +8,6 @@ start_link(Opts) ->
     HttpProcess = proplists:get_value(http_process, Opts),
     Resource = proplists:get_value(resource, Opts),
     SSL = proplists:get_value(ssl, Opts),
-    create_options(Port, HttpProcess, Resource, SSL),
     misultin:start_link(create_options(Port, HttpProcess, Resource, SSL)).
 
 file(Request, Filename) ->
@@ -53,7 +52,8 @@ create_options(Port, HttpProcess, Resource, undefined) ->
      {name, false},
      {loop, fun (Req) -> handle_http(HttpProcess, Req) end},
      {ws_loop, fun (Ws) -> handle_websocket(HttpProcess, Resource, Ws) end},
-     {ws_autoexit, false}];
+     {ws_autoexit, false},
+     {autoexit, false}];
 create_options(Port, HttpProcess, Resource, SSL) ->
     Certfile = proplists:get_value(certfile, SSL),
     Keyfile = proplists:get_value(keyfile, SSL),
@@ -63,6 +63,7 @@ create_options(Port, HttpProcess, Resource, SSL) ->
      {loop, fun (Req) -> handle_http(HttpProcess, Req) end},
      {ws_loop, fun (Ws) -> handle_websocket(HttpProcess, Resource, Ws) end},
      {ws_autoexit, false},
+     {autoexit, false},
      {ssl, [{certfile, Certfile},
 	    {keyfile, Keyfile},
 	    {password, Password}
@@ -70,7 +71,17 @@ create_options(Port, HttpProcess, Resource, SSL) ->
 
 handle_http(Server, Req) ->
     Path = misultin_req:resource([urldecode], Req),
-    gen_server:call(Server, {request, misultin_req:get(method, Req), lists:reverse(Path), Req}, infinity).
+    This = self(),
+    {Ref, _Pid} = spawn_monitor(fun() ->
+        gen_server:call(Server, {request, misultin_req:get(method, Req), lists:reverse(Path), Req}, infinity),
+        This ! request_done
+    end),
+    receive
+        request_done -> ok;
+        {'DOWN', Ref, _Type, _Object, _Info} -> ok;
+        closed ->
+            gen_server:cast(Server, {closed, lists:reverse(Path)})
+    end.
 
 handle_websocket(Server, Resource, Ws) ->
     WsPath = misultin_ws:get(path, Ws),
