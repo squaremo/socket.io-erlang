@@ -17,8 +17,9 @@ start_link(Opts) ->
     socketio_http_mochiweb_sup:start_link([{name, Name} | MochiOpts]).
 
 file(Req, Filename) ->
-    %% Euw, frankly.
-    Req:serve_file(Filename, "").
+    Req:serve_file(Filename, filename:join(
+                               [filename:dirname(code:which(?MODULE)),
+                                "..", "priv"])).
 
 respond(Req, Code) ->
     Req:respond({Code, [], ""}).

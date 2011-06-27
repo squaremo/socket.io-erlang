@@ -11,7 +11,10 @@ start_link(Opts) ->
     misultin:start_link(create_options(Port, HttpProcess, Resource, SSL)).
 
 file(Request, Filename) ->
-    misultin_req:file(Filename, Request).
+    FullPath = filename:join(
+                 [filename:dirname(code:which(?MODULE)),
+                  "..", "priv", Filename]),
+    misultin_req:file(FullPath, Request).
 
 respond(Request, Code) ->
     misultin_req:respond(Code, Request).
@@ -107,4 +110,3 @@ handle_websocket(Server, Ws, SessionID, Pid) ->
         _Ignore ->
             handle_websocket(Server, Ws, SessionID, Pid)
     end.
-

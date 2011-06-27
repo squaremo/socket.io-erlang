@@ -85,12 +85,12 @@ init([ServerModule, Port, Resource, SSL, DefaultHttpHandler, Sup]) ->
 %%--------------------------------------------------------------------
 handle_call({request, 'GET', ["socket.io.js"|Resource], Req}, _From, #state{ server_module = ServerModule, 
                                                                              resource = Resource } = State) ->
-    Response = apply(ServerModule, file, [Req, filename:join([filename:dirname(code:which(?MODULE)), "..", "priv", "Socket.IO", "socket.io.js"])]),
+    Response = apply(ServerModule, file, [Req, filename:join(["Socket.IO", "socket.io.js"])]),
     {reply, Response, State};
 
 handle_call({request, 'GET', ["WebSocketMain.swf", "web-socket-js", "vendor", "lib"|Resource], Req}, _From,
             #state{ server_module = ServerModule, resource = Resource } = State) ->
-    Response = apply(ServerModule, file, [Req, filename:join([filename:dirname(code:which(?MODULE)), "..", "priv", "Socket.IO", "lib", "vendor", "web-socket-js", "WebSocketMain.swf"])]),
+    Response = apply(ServerModule, file, [Req, filename:join(["Socket.IO", "lib", "vendor", "web-socket-js", "WebSocketMain.swf"])]),
     {reply, Response, State};
 
 %% New XHR Polling request
