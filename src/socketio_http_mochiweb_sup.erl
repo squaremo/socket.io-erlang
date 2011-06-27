@@ -11,7 +11,7 @@
 init([connection]) ->
     {ok, {{simple_one_for_one, 10, 10},
           [{undefined, {socketio_mochiws, start_link, []},
-           transient, 50, worker, []}]}};
+           temporary, 50, worker, []}]}};
 init([listener, MochiOpts]) ->
     {ok, {{rest_for_one, 10, 10},
           [{listener, {mochiweb_http, start, [MochiOpts]},
