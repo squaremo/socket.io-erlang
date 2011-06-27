@@ -4,7 +4,7 @@
 -behaviour(gen_event).
 -export([init/1, handle_event/2, handle_call/2, handle_info/2, terminate/2, code_change/3]).
 -export([handle_request/3]).
--export([transport_tests/1, transport_tests/2]).
+-export([transport_tests/2]).
 
 t_echoes_string({Client, EventMgr}) ->
     gen_event:notify(EventMgr, {change_pid, self()}),
@@ -26,13 +26,10 @@ t_echoes_json({Client, EventMgr}) ->
 t_session_id({Client, EventMgr}) ->
     gen_event:notify(EventMgr, {change_pid, self()}),
     socketio_client:send(Client, #msg{ content = "socketio_session" }),
-    receive 
+    receive
         X ->
             ?assertEqual(socketio_client:session_id(Client), X)
     end.
-
-transport_tests(Transport) ->
-    transport_tests(firefox, Transport).
 
 transport_tests(chrome, Transport) ->
     case os:type() of
@@ -57,12 +54,13 @@ transport_tests(BrowserCommand, Transport) ->
                   ets:insert(socketio_tests, {transport, Transport}),
                   error_logger:delete_report_handler(error_logger_tty_h), %% suppress annoying kernel logger
                   application:start(misultin),
-		                application:start(socketio),
+                  application:start(socketio),
                   {ok, Pid} = socketio_listener:start([{http_port, 8989}, 
                                                        {default_http_handler, ?MODULE}]),
                   EventMgr = socketio_listener:event_manager(Pid),
                   ok = gen_event:add_handler(EventMgr, ?MODULE,[self()]),
-io:format("~nRunning: ~1024p~n", [BrowserCommand ++ " http://localhost:8989/"]),
+                  ?debugFmt("~nRunning (~p): ~1024p~n",
+                            [Transport, BrowserCommand ++ " http://localhost:8989/"]),
                   ?cmd(BrowserCommand ++ " http://localhost:8989/"), %% FIXME: will only work on OSX/Linux
                   receive
                       {connected, Client, EM} -> 
