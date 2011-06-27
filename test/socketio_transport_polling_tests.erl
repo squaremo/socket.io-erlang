@@ -2,7 +2,9 @@
 -include_lib("eunit/include/eunit.hrl").
 
 transport_xhr_polling_test_() ->
-    socketio_transport_tests:transport_tests("xhr-polling").
+    [socketio_transport_tests:transport_tests(B, "xhr-polling") ||
+        B <- [chrome, firefox]].
 
 transport_jsonp_polling_test_() ->
-    socketio_transport_tests:transport_tests("jsonp-polling").
+    [socketio_transport_tests:transport_tests(B, "jsonp-polling") ||
+        B <- [chrome, firefox]].
