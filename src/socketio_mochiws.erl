@@ -56,13 +56,14 @@ wait_for_frame({data, Data}, State = #state{
         {close, _ParseState1} ->
             %% TODO really necessary to reset here?
             %error_logger:info_msg("Client initiated close ~p~n", [i(State)]),
-            State1 = State#state{ parse_state = rabbit_socks_ws:initial_parse_state() },
+            State1 = State#state{ parse_state = initial_parse_state() },
             {stop, normal, close_connection(State1)};
-        {frame, {utf8, Str}, Rest} ->
+        {frame, {utf8, Bin}, Rest} ->
+            Str = unicode:characters_to_list(Bin),
             gen_server:call(Receiver, {websocket, Str, self()}),
             wait_for_frame({data, Rest},
                            State#state{
-                             parse_state = rabbit_socks_ws:initial_parse_state()})
+                             parse_state = initial_parse_state()})
     end;
 wait_for_frame({send, Frame}, State) ->
     {next_state, wait_for_frame, send_data(Frame, State)};
@@ -77,7 +78,7 @@ close_sent({send, _Data}, State) ->
     {next_state, close_sent, State};
 close_sent({data, Data}, State = #state{ parse_state = ParseState,
                                          socket = Sock }) ->
-    case rabbit_socks_ws:parse_frame(Data, ParseState) of
+    case parse_frame(Data, ParseState) of
         {more, ParseState1} ->
             mochiweb_socket:setopts(Sock, [{active, once}]),
             {next_state, close_sent, State#state{ parse_state = ParseState1 }};
@@ -86,7 +87,7 @@ close_sent({data, Data}, State = #state{ parse_state = ParseState,
         {frame, _Frame, Rest} ->
             close_sent({data, Rest},
                        State#state{
-                         parse_state = rabbit_socks_ws:initial_parse_state()})
+                         parse_state = initial_parse_state()})
     end;
 close_sent({timeout, _Ref, close_handshake}, State) ->
     {stop, normal, finalise_connection(State)}.
