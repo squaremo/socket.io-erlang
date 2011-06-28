@@ -274,23 +274,23 @@ send_message({buffer, Messages}, Req, Index, ServerModule, Sup) ->
     send_message(Messages0, Req, Index, ServerModule, Sup);
 
 send_message(Message, Req, undefined, ServerModule, Sup) ->
-    Headers = [{"Connection", "keep-alive"}],
-    Headers0 =
+    KeepAlive = {"Connection", "keep-alive"},
+    Headers =
 	case cors_headers(apply(ServerModule, get_headers, [Req]), Sup) of
 	    {false, _} ->
-		Headers;
+		[KeepAlive];
 	    {_, Headers1} ->
-		[Headers1|Headers]
+		[KeepAlive|Headers1]
 	end,
-    apply(ServerModule, respond, [Req, 200, Headers0, Message]);
+    apply(ServerModule, respond, [Req, 200, Headers, Message]);
 
 send_message(Message, Req, Index, ServerModule, Sup) ->
-    Headers = [{"Connection", "keep-alive"}],
+    KeepAlive = {"Connection", "keep-alive"},
     case cors_headers(apply(ServerModule, get_headers, [Req]), Sup) of
 	{false, _} ->
 	    apply(ServerModule, respond, [Req, 200, "alert('Cross domain security restrictions not met');"]);
-	{_, Headers0} ->
-	    send_message_1([Headers0|Headers], Message, Req, Index, ServerModule)
+	{_, Headers} ->
+	    send_message_1([KeepAlive|Headers], Message, Req, Index, ServerModule)
 	end.
 
 send_message_1(Headers, Message, Req, Index, ServerModule) ->

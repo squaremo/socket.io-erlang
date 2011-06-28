@@ -37,7 +37,7 @@ headers(Req, Headers) ->
     %% TODO socketio_http will send a Transfer-Encoding if it's
     %% intending to send a chunked response. Do we want to detect this
     %% and use the special case {200, Headers, chunked} for mochiweb?
-    Req:start_raw_response({200, Headers}).
+    Req:start_raw_response({200, mochiweb_headers:from_list(Headers)}).
 
 chunk(Req, Chunk) ->
     Res = mochiweb_response:new(Req, 200, []),
